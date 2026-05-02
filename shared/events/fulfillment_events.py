@@ -15,7 +15,8 @@ class FulfillmentAssignedData(BaseModel):
     order_id: int
     warehouse_id: str
     carrier: str
-    estimated_delivery_days: int
+    customer_id: str | None = None
+    estimated_delivery_days: int | None = None
 
 
 class FulfillmentCompletedData(BaseModel):

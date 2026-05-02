@@ -80,15 +80,46 @@ class PullSubscriber(ABC):
 
                 ack_ids = []
                 for msg in response.received_messages:
+                    # delivery_attempt is set by GCP when dead-letter policy is
+                    # configured on the subscription; falls back to 0 otherwise.
+                    delivery_attempt: int = getattr(
+                        msg.message, "delivery_attempt", 0
+                    ) or 0
+                    event_type: str = msg.message.attributes.get("event_type", "unknown")
+                    message_id: str = msg.message.message_id
+
+                    if delivery_attempt > 1:
+                        log = logger.warning if delivery_attempt >= 3 else logger.info
+                        log(
+                            "Redelivery attempt %d/5 subscription=%s "
+                            "message_id=%s event_type=%s",
+                            delivery_attempt,
+                            self.subscription_id,
+                            message_id,
+                            event_type,
+                        )
+
                     try:
                         envelope = EventEnvelope.from_json_bytes(msg.message.data)
                         self.handle(envelope)
                         ack_ids.append(msg.ack_id)
+                        if delivery_attempt > 1:
+                            logger.info(
+                                "Message processed after %d attempts subscription=%s "
+                                "message_id=%s",
+                                delivery_attempt,
+                                self.subscription_id,
+                                message_id,
+                            )
                     except Exception:
                         logger.exception(
-                            "Handler error subscription=%s event_type=%s — NACK",
+                            "Handler error subscription=%s event_type=%s "
+                            "message_id=%s delivery_attempt=%d — NACK "
+                            "(will route to DLQ after 5 attempts)",
                             self.subscription_id,
-                            msg.message.attributes.get("event_type", "unknown"),
+                            event_type,
+                            message_id,
+                            delivery_attempt,
                         )
 
                 if ack_ids:
