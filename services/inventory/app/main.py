@@ -99,13 +99,43 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title="SupplyChainForge — Inventory Service",
     description=(
-        "Manages products, stock levels, and reservations. "
-        "Part of the SupplyChainForge microservice platform."
+        "## Inventory Service\n\n"
+        "Manages the product catalogue and all stock-level operations for the "
+        "SupplyChainForge platform.\n\n"
+        "### Responsibilities\n"
+        "- Product CRUD (create, read, update, delete)\n"
+        "- Stock reservation / release with row-level locking (`SELECT … FOR UPDATE`)\n"
+        "- Low-stock detection and reorder-point alerts\n"
+        "- Pub/Sub subscriber: `order.created` → reserve stock, publish `stock.reserved`\n"
+        "- Pub/Sub subscriber: `fulfillment.completed` → audit trail\n\n"
+        "### Event Flow\n"
+        "```\n"
+        "order.created (consumed) → reserve stock → stock.reserved (published)\n"
+        "fulfillment.completed (consumed) → record completion\n"
+        "```\n\n"
+        "### Authentication\n"
+        "Internal service — no public authentication. Add an API Gateway / Cloud Armor "
+        "rule in production to restrict access."
     ),
     version=settings.SERVICE_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    openapi_tags=[
+        {
+            "name": "products",
+            "description": "Product catalogue management and stock operations.",
+        },
+        {
+            "name": "health",
+            "description": "Liveness and readiness probes used by Cloud Run and Kubernetes.",
+        },
+    ],
+    contact={
+        "name": "SupplyChainForge Engineering",
+        "url": "https://github.com/your-org/supply-chain-forge",
+    },
+    license_info={"name": "MIT"},
     lifespan=lifespan,
 )
 

@@ -55,8 +55,44 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="SupplyChainForge — Fulfillment Service",
-    description="Handles fulfillment lifecycle: warehouse assignment, picking, shipping.",
+    description=(
+        "## Fulfillment Service\n\n"
+        "Handles warehouse assignment, picking, and shipping for the "
+        "SupplyChainForge platform.\n\n"
+        "### Responsibilities\n"
+        "- Automatic warehouse assignment on order arrival\n"
+        "- Fulfillment state machine: `ASSIGNED → PICKING → SHIPPED → COMPLETED`\n"
+        "- Carrier simulation (FedEx / UPS / DHL random assignment)\n"
+        "- Pub/Sub subscriber: `order.created` → create fulfillment record\n"
+        "- Pub/Sub publisher: `fulfillment.assigned` after warehouse assignment\n"
+        "- Pub/Sub publisher: `fulfillment.completed` after delivery confirmation\n\n"
+        "### Event Flow\n"
+        "```\n"
+        "order.created (consumed) → fulfillment.assigned (published)\n"
+        "POST /complete    → fulfillment.completed (published)\n"
+        "```\n\n"
+        "### Authentication\n"
+        "Internal service — no public authentication in this version."
+    ),
     version=settings.SERVICE_VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    openapi_tags=[
+        {
+            "name": "fulfillments",
+            "description": "Fulfillment lifecycle: warehouse → pick → ship → complete.",
+        },
+        {
+            "name": "health",
+            "description": "Liveness and readiness probes.",
+        },
+    ],
+    contact={
+        "name": "SupplyChainForge Engineering",
+        "url": "https://github.com/your-org/supply-chain-forge",
+    },
+    license_info={"name": "MIT"},
     lifespan=lifespan,
 )
 

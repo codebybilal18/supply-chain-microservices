@@ -61,8 +61,45 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="SupplyChainForge — Order Service",
-    description="Handles order lifecycle: creation, validation, status tracking.",
+    description=(
+        "## Order Service\n\n"
+        "Handles the complete order lifecycle for the SupplyChainForge platform.\n\n"
+        "### Responsibilities\n"
+        "- Order creation with inventory validation (sync HTTP to Inventory Service)\n"
+        "- Stock reservation orchestration via `POST /reserve` on Inventory Service\n"
+        "- Order status machine: `PENDING → CONFIRMED → PROCESSING → SHIPPED → DELIVERED`\n"
+        "- Order cancellation with stock release\n"
+        "- Pub/Sub publisher: `order.created` on successful confirmation\n"
+        "- Pub/Sub subscriber: `fulfillment.assigned` → transition to `PROCESSING`\n"
+        "- Pub/Sub subscriber: `fulfillment.completed` → transition to `DELIVERED`\n\n"
+        "### Event Flow\n"
+        "```\n"
+        "POST /orders → order.created (published)\n"
+        "fulfillment.assigned (consumed) → status: PROCESSING\n"
+        "fulfillment.completed (consumed) → status: DELIVERED\n"
+        "```\n\n"
+        "### Authentication\n"
+        "Internal service — no public authentication in this version."
+    ),
     version=settings.SERVICE_VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    openapi_tags=[
+        {
+            "name": "orders",
+            "description": "Order lifecycle management.",
+        },
+        {
+            "name": "health",
+            "description": "Liveness and readiness probes.",
+        },
+    ],
+    contact={
+        "name": "SupplyChainForge Engineering",
+        "url": "https://github.com/your-org/supply-chain-forge",
+    },
+    license_info={"name": "MIT"},
     lifespan=lifespan,
 )
 
