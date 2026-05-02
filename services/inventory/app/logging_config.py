@@ -23,6 +23,13 @@ class JSONFormatter(logging.Formatter):
         import json
         import traceback
 
+        # Import lazily to avoid circular imports; falls back gracefully
+        try:
+            from shared.middleware.request_id import get_request_id
+            request_id = get_request_id()
+        except Exception:
+            request_id = getattr(record, "request_id", "-")
+
         payload: dict = {
             "severity": record.levelname,
             "message": record.getMessage(),
@@ -32,6 +39,7 @@ class JSONFormatter(logging.Formatter):
             "module": record.module,
             "funcName": record.funcName,
             "lineno": record.lineno,
+            "request_id": request_id,
         }
 
         if record.exc_info:

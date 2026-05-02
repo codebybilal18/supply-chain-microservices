@@ -8,7 +8,7 @@ Design decisions:
 """
 
 from functools import lru_cache
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "127.0.0.1"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
+
+    # ── Rate Limiting ─────────────────────────────────────────────────────────
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REQUESTS: int = 200   # max requests per window per IP
+    RATE_LIMIT_WINDOW: int = 60      # window size in seconds
 
     # ── GCP (wired in Phase 4) ────────────────────────────────────────────────
     GCP_PROJECT_ID: str = ""
@@ -82,6 +87,19 @@ class Settings(BaseSettings):
         if int(v) <= 0:
             raise ValueError("Pool size must be > 0")
         return int(v)
+
+    @model_validator(mode="after")
+    def _load_secrets(self):
+        """Pull DB_PASSWORD from Secret Manager when running on GCP."""
+        if not self.DB_PASSWORD:
+            try:
+                from shared.gcp.secrets import get_secret
+                self.DB_PASSWORD = get_secret(
+                    "scf-inventory-db-password", default=self.DB_PASSWORD
+                )
+            except Exception:
+                pass
+        return self
 
 
 @lru_cache(maxsize=1)

@@ -1,6 +1,7 @@
 """Fulfillment Service configuration."""
 
 from functools import lru_cache
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,7 +24,17 @@ class Settings(BaseSettings):
     DB_POOL_RECYCLE: int = 1800
 
     # ── Inter-service ─────────────────────────────────────────────────────────
-    ORDER_SERVICE_URL: str = "http://order:8001"
+    ORDER_SERVICE_URL: str = "http://order:8000"
+
+    # ── Cache (Redis — for rate limiting) ─────────────────────────────────────
+    REDIS_HOST: str = "127.0.0.1"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
+    # ── Rate Limiting ─────────────────────────────────────────────────────────
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REQUESTS: int = 100   # max requests per window per IP
+    RATE_LIMIT_WINDOW: int = 60      # window size in seconds
 
     # ── GCP / Pub/Sub ─────────────────────────────────────────────────────────
     GCP_PROJECT_ID: str = ""
@@ -44,6 +55,22 @@ class Settings(BaseSettings):
             f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
         )
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    @model_validator(mode="after")
+    def _load_secrets(self):
+        if not self.DB_PASSWORD:
+            try:
+                from shared.gcp.secrets import get_secret
+                self.DB_PASSWORD = get_secret(
+                    "scf-fulfillment-db-password", default=self.DB_PASSWORD
+                )
+            except Exception:
+                pass
+        return self
 
 
 @lru_cache(maxsize=1)

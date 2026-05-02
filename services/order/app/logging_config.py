@@ -9,6 +9,13 @@ from app.config import settings
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         import json
+
+        try:
+            from shared.middleware.request_id import get_request_id
+            request_id = get_request_id()
+        except Exception:
+            request_id = getattr(record, "request_id", "-")
+
         payload = {
             "severity": record.levelname,
             "message": record.getMessage(),
@@ -18,6 +25,7 @@ class JSONFormatter(logging.Formatter):
             "module": record.module,
             "funcName": record.funcName,
             "lineno": record.lineno,
+            "request_id": request_id,
         }
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)

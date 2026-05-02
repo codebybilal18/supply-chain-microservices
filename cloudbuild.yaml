@@ -1,0 +1,185 @@
+# =============================================================================
+# Cloud Build CI/CD Pipeline — cloudbuild.yaml
+# =============================================================================
+# Triggered on push to main branch (configure in Cloud Build UI or via trigger TF resource).
+#
+# Pipeline stages:
+#   1.  Run unit tests for all 3 services
+#   2a. Build inventory Docker image
+#   2b. Build order Docker image  
+#   2c. Build fulfillment Docker image
+#   3a. Push inventory image to Artifact Registry
+#   3b. Push order image to Artifact Registry
+#   3c. Push fulfillment image to Artifact Registry
+#   4a. Deploy inventory to Cloud Run
+#   4b. Deploy order to Cloud Run
+#   4c. Deploy fulfillment to Cloud Run
+#
+# Substitutions (set in trigger config):
+#   _REGION       — GCP region (default: us-central1)
+#   _REGISTRY_URL — Artifact Registry URL
+#   _ENVIRONMENT  — Deployment environment (default: prod)
+# =============================================================================
+
+substitutions:
+  _REGION: "us-central1"
+  _REGISTRY_URL: "${_REGION}-docker.pkg.dev/${PROJECT_ID}/scf-services"
+  _ENVIRONMENT: "prod"
+
+options:
+  machineType: "E2_HIGHCPU_8"
+  logging: CLOUD_LOGGING_ONLY
+  dynamic_substitutions: true
+
+steps:
+
+  # ── Stage 1: Tests ─────────────────────────────────────────────────────────
+
+  - id: "test-inventory"
+    name: "python:3.11-slim"
+    dir: "supplychainforge"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        pip install --quiet -r services/inventory/requirements.txt -r services/inventory/requirements-dev.txt
+        export PYTHONPATH=/workspace/supplychainforge:/workspace/supplychainforge/shared/..
+        python -m pytest services/inventory/tests -q --tb=short
+    waitFor: ["-"]  # run immediately
+
+  - id: "test-order"
+    name: "python:3.11-slim"
+    dir: "supplychainforge"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        pip install --quiet -r services/order/requirements.txt -r services/order/requirements-dev.txt
+        export PYTHONPATH=/workspace/supplychainforge:/workspace/supplychainforge/shared/..
+        python -m pytest services/order/tests -q --tb=short
+    waitFor: ["-"]
+
+  - id: "test-fulfillment"
+    name: "python:3.11-slim"
+    dir: "supplychainforge"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        pip install --quiet -r services/fulfillment/requirements.txt -r services/fulfillment/requirements-dev.txt
+        export PYTHONPATH=/workspace/supplychainforge:/workspace/supplychainforge/shared/..
+        python -m pytest services/fulfillment/tests -q --tb=short
+    waitFor: ["-"]
+
+  # ── Stage 2: Build images ──────────────────────────────────────────────────
+
+  - id: "build-inventory"
+    name: "gcr.io/cloud-builders/docker"
+    dir: "supplychainforge"
+    args:
+      - "build"
+      - "--target", "runtime"
+      - "--tag", "${_REGISTRY_URL}/inventory:${SHORT_SHA}"
+      - "--tag", "${_REGISTRY_URL}/inventory:latest"
+      - "--cache-from", "${_REGISTRY_URL}/inventory:latest"
+      - "--build-arg", "BUILDKIT_INLINE_CACHE=1"
+      - "-f", "services/inventory/Dockerfile"
+      - "."
+    waitFor: ["test-inventory"]
+
+  - id: "build-order"
+    name: "gcr.io/cloud-builders/docker"
+    dir: "supplychainforge"
+    args:
+      - "build"
+      - "--target", "runtime"
+      - "--tag", "${_REGISTRY_URL}/order:${SHORT_SHA}"
+      - "--tag", "${_REGISTRY_URL}/order:latest"
+      - "--cache-from", "${_REGISTRY_URL}/order:latest"
+      - "--build-arg", "BUILDKIT_INLINE_CACHE=1"
+      - "-f", "services/order/Dockerfile"
+      - "."
+    waitFor: ["test-order"]
+
+  - id: "build-fulfillment"
+    name: "gcr.io/cloud-builders/docker"
+    dir: "supplychainforge"
+    args:
+      - "build"
+      - "--target", "runtime"
+      - "--tag", "${_REGISTRY_URL}/fulfillment:${SHORT_SHA}"
+      - "--tag", "${_REGISTRY_URL}/fulfillment:latest"
+      - "--cache-from", "${_REGISTRY_URL}/fulfillment:latest"
+      - "--build-arg", "BUILDKIT_INLINE_CACHE=1"
+      - "-f", "services/fulfillment/Dockerfile"
+      - "."
+    waitFor: ["test-fulfillment"]
+
+  # ── Stage 3: Push images ───────────────────────────────────────────────────
+
+  - id: "push-inventory"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "${_REGISTRY_URL}/inventory"]
+    waitFor: ["build-inventory"]
+
+  - id: "push-order"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "${_REGISTRY_URL}/order"]
+    waitFor: ["build-order"]
+
+  - id: "push-fulfillment"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "${_REGISTRY_URL}/fulfillment"]
+    waitFor: ["build-fulfillment"]
+
+  # ── Stage 4: Deploy to Cloud Run ──────────────────────────────────────────
+
+  - id: "deploy-inventory"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update"
+      - "scf-inventory"
+      - "--image=${_REGISTRY_URL}/inventory:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--quiet"
+    waitFor: ["push-inventory"]
+
+  - id: "deploy-order"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update"
+      - "scf-order"
+      - "--image=${_REGISTRY_URL}/order:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--quiet"
+    waitFor: ["push-order", "deploy-inventory"]
+
+  - id: "deploy-fulfillment"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update"
+      - "scf-fulfillment"
+      - "--image=${_REGISTRY_URL}/fulfillment:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--quiet"
+    waitFor: ["push-fulfillment", "deploy-order"]
+
+images:
+  - "${_REGISTRY_URL}/inventory:${SHORT_SHA}"
+  - "${_REGISTRY_URL}/inventory:latest"
+  - "${_REGISTRY_URL}/order:${SHORT_SHA}"
+  - "${_REGISTRY_URL}/order:latest"
+  - "${_REGISTRY_URL}/fulfillment:${SHORT_SHA}"
+  - "${_REGISTRY_URL}/fulfillment:latest"

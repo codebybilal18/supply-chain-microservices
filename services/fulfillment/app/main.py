@@ -12,6 +12,8 @@ from app.config import settings
 from app.database import engine
 from app.logging_config import setup_logging
 from app.routers import health, fulfillments
+from shared.middleware.rate_limit import RateLimitMiddleware
+from shared.middleware.request_id import RequestIDMiddleware
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -63,6 +65,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(RequestIDMiddleware)
+
+if settings.RATE_LIMIT_ENABLED:
+    app.add_middleware(
+        RateLimitMiddleware,
+        redis_url=settings.redis_url,
+        max_requests=settings.RATE_LIMIT_REQUESTS,
+        window_seconds=settings.RATE_LIMIT_WINDOW,
+    )
 
 
 @app.exception_handler(Exception)

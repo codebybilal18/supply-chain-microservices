@@ -26,6 +26,8 @@ from app.config import settings
 from app.database import engine
 from app.logging_config import setup_logging
 from app.routers import health, products
+from shared.middleware.rate_limit import RateLimitMiddleware
+from shared.middleware.request_id import RequestIDMiddleware
 
 # Configure logging before any other module uses the logger
 setup_logging()
@@ -96,6 +98,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Request ID — adds X-Request-ID to every request/response for tracing
+app.add_middleware(RequestIDMiddleware)
+
+# Rate limiting — Redis sliding window (best-effort; bypassed if Redis is down)
+if settings.RATE_LIMIT_ENABLED:
+    app.add_middleware(
+        RateLimitMiddleware,
+        redis_url=settings.redis_url,
+        max_requests=settings.RATE_LIMIT_REQUESTS,
+        window_seconds=settings.RATE_LIMIT_WINDOW,
+    )
 
 
 # ── Global exception handler ──────────────────────────────────────────────────
