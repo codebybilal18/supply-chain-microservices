@@ -41,3 +41,9 @@ variable "max_instance_count" {
   type        = number
   default     = 10
 }
+
+variable "notification_channels" {
+  description = "Cloud Monitoring notification channel IDs for alert policies (e.g. email, PagerDuty)."
+  type        = list(string)
+  default     = []
+}

@@ -1,21 +1,15 @@
 """
-Subscriber: order.created → reserve stock for each order item.
+Subscriber: order.created → reserve stock for each order item, then publish
+inventory.stock_reserved so downstream services know the reservation succeeded.
 
-This subscriber runs in a background thread (see PullSubscriber base class).
-On receiving an order.created event it:
-  1. Opens a new DB session (cannot reuse the request-scoped session).
-  2. Calls reserve_stock for each item in the order.
-  3. Publishes inventory.stock_reserved on success.
-  4. ACKs the message only if all reservations succeed.
-  5. On any failure, raises (NACK) so the message is redelivered.
-
-Idempotency: if the order_id was already processed, the re-reservation
-will fail with InsufficientStockError on items already counted — future
-Phase 5 work will add an idempotency table to guard this properly.
+Idempotency: duplicate order.created messages are handled at the DB level via
+the ProcessedEvent table (see shared.db.idempotency).  The reservation itself
+is also idempotent via the `reservations` check in InventoryService.
 """
 
 import asyncio
 import logging
+from typing import Callable, Optional
 
 from shared.events.envelope import EventEnvelope
 from shared.events.order_events import ORDER_CREATED, OrderCreatedData
@@ -29,6 +23,10 @@ logger = logging.getLogger(__name__)
 class OrderCreatedSubscriber(PullSubscriber):
     subscription_id = settings.PUBSUB_SUBSCRIPTION_ORDER_CREATED
 
+    def __init__(self, project_id: str, publisher: Optional[Callable] = None, **kwargs):
+        super().__init__(project_id=project_id, **kwargs)
+        self._publisher = publisher
+
     def handle(self, envelope: EventEnvelope) -> None:
         if envelope.event_type != ORDER_CREATED:
             return  # ignore unrelated events on shared subscriptions
@@ -39,15 +37,21 @@ class OrderCreatedSubscriber(PullSubscriber):
             order_data.order_id, len(order_data.items),
         )
 
-        # Run async DB operations in a new event loop (subscriber runs in a thread)
-        asyncio.run(self._reserve_all(order_data))
+        asyncio.run(self._reserve_all(order_data, envelope.event_id))
 
-    async def _reserve_all(self, order_data: OrderCreatedData) -> None:
-        from sqlalchemy.ext.asyncio import AsyncSession
+    async def _reserve_all(self, order_data: OrderCreatedData, event_id: str) -> None:
         from app.database import AsyncSessionLocal
         from app.services.inventory_service import InventoryService
+        from shared.db.idempotency import is_already_processed, mark_processed
 
         async with AsyncSessionLocal() as session:
+            # Idempotency check — skip if this event was already processed
+            if await is_already_processed(session, settings.SERVICE_NAME, event_id):
+                logger.info(
+                    "order.created event_id=%s already processed, skipping", event_id
+                )
+                return
+
             try:
                 service = InventoryService(db=session)
                 for item in order_data.items:
@@ -56,10 +60,14 @@ class OrderCreatedSubscriber(PullSubscriber):
                         quantity=item.quantity,
                         order_id=str(order_data.order_id),
                     )
+
+                await mark_processed(session, settings.SERVICE_NAME, event_id)
                 await session.commit()
+
                 logger.info(
                     "Reserved all items for order_id=%d", order_data.order_id
                 )
+                self._publish_stock_reserved(order_data)
             except Exception:
                 await session.rollback()
                 logger.exception(
@@ -67,3 +75,30 @@ class OrderCreatedSubscriber(PullSubscriber):
                     order_data.order_id,
                 )
                 raise
+
+    def _publish_stock_reserved(self, order_data: OrderCreatedData) -> None:
+        if not self._publisher:
+            return
+        try:
+            from shared.events.inventory_events import STOCK_RESERVED
+            envelope = EventEnvelope(
+                event_type=STOCK_RESERVED,
+                source=settings.SERVICE_NAME,
+                data={
+                    "order_id": order_data.order_id,
+                    "reservations": [
+                        {
+                            "product_id": item.product_id,
+                            "sku": item.sku,
+                            "quantity": item.quantity,
+                        }
+                        for item in order_data.items
+                    ],
+                },
+            )
+            self._publisher(envelope)
+            logger.info("Published stock_reserved for order_id=%d", order_data.order_id)
+        except Exception:
+            logger.exception(
+                "Failed to publish stock_reserved for order_id=%d", order_data.order_id
+            )

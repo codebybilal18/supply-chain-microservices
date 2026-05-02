@@ -59,6 +59,15 @@ class CacheService:
             await self._client.aclose()
             logger.info("Redis cache closed")
 
+    async def ping(self) -> bool:
+        """Return True if Redis is reachable."""
+        if not self._client:
+            return False
+        try:
+            return await self._client.ping()
+        except Exception:
+            return False
+
     async def get_product(self, product_id: int) -> dict | None:
         return await self._get(_product_key(product_id))
 

@@ -100,6 +100,26 @@ resource "google_pubsub_subscription" "order_fulfillment_assigned" {
   }
 }
 
+# Order Service: consumes fulfillment.completed → transitions order to DELIVERED
+resource "google_pubsub_subscription" "order_fulfillment_completed" {
+  name    = "order-fulfillment-completed-sub"
+  topic   = google_pubsub_topic.fulfillment_events.name
+  project = var.project_id
+
+  ack_deadline_seconds       = 30
+  message_retention_duration = "604800s"
+  retain_acked_messages      = false
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "300s"
+  }
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.fulfillment_events_dlq.id
+    max_delivery_attempts = 5
+  }
+}
+
 # Fulfillment Service: consumes order.created
 resource "google_pubsub_subscription" "fulfillment_order_created" {
   name    = "fulfillment-order-created-sub"

@@ -34,7 +34,7 @@ class OrderStatus(str, enum.Enum):
 ORDER_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
     OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
     OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
-    OrderStatus.PROCESSING: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.CANCELLED},
     OrderStatus.SHIPPED: {OrderStatus.DELIVERED},
     OrderStatus.DELIVERED: set(),
     OrderStatus.CANCELLED: set(),

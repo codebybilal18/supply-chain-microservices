@@ -52,23 +52,44 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning("Redis not available, running without cache: %s", exc)
     app.state.cache = cache
 
-    # Pub/Sub subscriber for order.created events (starts background thread)
+    # Pub/Sub publisher + subscribers (wired only when GCP_PROJECT_ID is set)
+    app.state.pubsub_publisher = None
+    app.state.pubsub_subscribers = []
     if settings.GCP_PROJECT_ID:
         try:
+            from shared.pubsub.publisher import publish_event
+            project_id = settings.GCP_PROJECT_ID
+
+            def _publisher(envelope):
+                publish_event(
+                    settings.PUBSUB_TOPIC_INVENTORY_EVENTS, envelope, project_id
+                )
+
+            app.state.pubsub_publisher = _publisher
+
+            # order.created → reserve stock + publish stock_reserved
             from app.subscribers.order_created import OrderCreatedSubscriber
-            sub = OrderCreatedSubscriber(project_id=settings.GCP_PROJECT_ID)
-            sub.start()
-            app.state.pubsub_subscriber = sub
+            sub_order = OrderCreatedSubscriber(
+                project_id=project_id, publisher=_publisher
+            )
+            sub_order.start()
+            app.state.pubsub_subscribers.append(sub_order)
+
+            # fulfillment.completed → confirm stock reduction
+            from app.subscribers.fulfillment_completed import FulfillmentCompletedSubscriber
+            sub_fulfillment = FulfillmentCompletedSubscriber(project_id=project_id)
+            sub_fulfillment.start()
+            app.state.pubsub_subscribers.append(sub_fulfillment)
         except Exception as exc:
-            logger.warning("Pub/Sub subscriber not started: %s", exc)
+            logger.warning("Pub/Sub not configured: %s", exc)
 
     yield
 
     # ── Shutdown ──────────────────────────────────────────────────────────────
     logger.info("Shutting down %s", settings.SERVICE_NAME)
     await cache.close()
-    if hasattr(app.state, "pubsub_subscriber"):
-        app.state.pubsub_subscriber.stop()
+    for sub in app.state.pubsub_subscribers:
+        sub.stop()
     await engine.dispose()
     logger.info("Shutdown complete.")
 

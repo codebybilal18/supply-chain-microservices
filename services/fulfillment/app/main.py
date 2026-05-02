@@ -36,17 +36,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             app.state.pubsub_publisher = _publisher
 
             from app.subscribers.order_created import OrderCreatedSubscriber
-            sub = OrderCreatedSubscriber(project_id=settings.GCP_PROJECT_ID)
+            sub = OrderCreatedSubscriber(
+                project_id=settings.GCP_PROJECT_ID, publisher=_publisher
+            )
             sub.start()
-            app.state.pubsub_subscriber = sub
+            app.state.pubsub_subscribers = [sub]
         except Exception as exc:
             logger.warning("Pub/Sub not configured: %s", exc)
 
     yield
 
     logger.info("Shutting down %s", settings.SERVICE_NAME)
-    if hasattr(app.state, "pubsub_subscriber"):
-        app.state.pubsub_subscriber.stop()
+    for sub in getattr(app.state, "pubsub_subscribers", []):
+        sub.stop()
     await engine.dispose()
     logger.info("Shutdown complete.")
 

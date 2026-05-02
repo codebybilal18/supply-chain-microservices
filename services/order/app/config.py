@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     PUBSUB_EMULATOR_HOST: str = ""
     PUBSUB_TOPIC_ORDER_EVENTS: str = "order-events"
     PUBSUB_SUBSCRIPTION_FULFILLMENT_ASSIGNED: str = "order-fulfillment-assigned-sub"
+    PUBSUB_SUBSCRIPTION_FULFILLMENT_COMPLETED: str = "order-fulfillment-completed-sub"
 
     @property
     def database_url(self) -> str:

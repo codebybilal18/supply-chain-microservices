@@ -138,3 +138,10 @@ module "cloud_run" {
     module.iam,
   ]
 }
+
+module "monitoring" {
+  source                = "./modules/monitoring"
+  project_id            = var.project_id
+  notification_channels = var.notification_channels
+  depends_on            = [module.cloud_run, module.pubsub]
+}

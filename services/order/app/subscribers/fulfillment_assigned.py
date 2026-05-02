@@ -26,21 +26,30 @@ class FulfillmentAssignedSubscriber(PullSubscriber):
             "Received fulfillment.assigned order_id=%d fulfillment_id=%d",
             data.order_id, data.fulfillment_id,
         )
-        asyncio.run(self._update_order(data.order_id))
+        asyncio.run(self._update_order(data.order_id, envelope.event_id))
 
-    async def _update_order(self, order_id: int) -> None:
+    async def _update_order(self, order_id: int, event_id: str) -> None:
         from app.database import AsyncSessionLocal
         from app.models.order import OrderStatus
         from app.services.order_service import OrderService
         from app.config import settings as cfg
+        from shared.db.idempotency import is_already_processed, mark_processed
 
         async with AsyncSessionLocal() as session:
+            if await is_already_processed(session, settings.SERVICE_NAME, event_id):
+                logger.info(
+                    "fulfillment.assigned event_id=%s already processed, skipping",
+                    event_id,
+                )
+                return
+
             try:
                 service = OrderService(
                     db=session,
                     inventory_base_url=cfg.INVENTORY_SERVICE_URL,
                 )
                 await service.update_status(order_id, OrderStatus.PROCESSING)
+                await mark_processed(session, settings.SERVICE_NAME, event_id)
                 await session.commit()
             except Exception:
                 await session.rollback()
