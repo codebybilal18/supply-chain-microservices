@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # ── Shared base ───────────────────────────────────────────────────────────────
 
 class ProductBase(BaseModel):
-    sku: Annotated[str, Field(min_length=1, max_length=100, examples=["NOON-ELEC-001"])]
+    sku: Annotated[str, Field(min_length=1, max_length=100, examples=["CAT-ELEC-001"])]
     name: Annotated[str, Field(min_length=1, max_length=255, examples=["Samsung 65\" QLED TV"])]
     description: str | None = Field(default=None, max_length=2000)
     category: Annotated[str, Field(min_length=1, max_length=100, examples=["electronics"])]

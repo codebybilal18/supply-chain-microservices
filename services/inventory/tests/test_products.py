@@ -33,7 +33,7 @@ async def create_one(client: AsyncClient, **overrides) -> dict:
 async def test_create_product(client: AsyncClient) -> None:
     body = await create_one(client)
     assert body["id"] > 0
-    assert body["sku"] == "NOON-ELEC-001"
+    assert body["sku"] == "CAT-ELEC-001"
     assert body["quantity_on_hand"] == 50
     assert body["quantity_reserved"] == 0
     assert body["version"] == 1

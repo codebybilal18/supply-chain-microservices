@@ -56,7 +56,7 @@ class Product(Base):
     )
     unit_price: Mapped[Decimal] = mapped_column(
         Numeric(12, 2), nullable=False,
-        comment="Price in base currency (AED for noon)",
+        comment="Price in base currency (AED)",
     )
 
     # ── Stock counters ────────────────────────────────────────────────────────

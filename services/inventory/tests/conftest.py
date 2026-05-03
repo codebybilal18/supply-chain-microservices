@@ -81,7 +81,7 @@ async def client(db_session: AsyncSession) -> AsyncClient:
 # ── Sample data helpers ───────────────────────────────────────────────────────
 
 SAMPLE_PRODUCT = {
-    "sku": "NOON-ELEC-001",
+    "sku": "CAT-ELEC-001",
     "name": "Samsung 65 QLED TV",
     "description": "4K QLED smart TV with Tizen OS",
     "category": "electronics",
