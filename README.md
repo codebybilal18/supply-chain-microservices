@@ -1,6 +1,3 @@
-**Here is the cleaned-up, professional, and improved version of your README.md** (with all references to noon removed):
-
-```markdown
 # SupplyChainForge
 
 > A production-grade, cloud-native supply chain management system built with Python microservices on Google Cloud Platform.
