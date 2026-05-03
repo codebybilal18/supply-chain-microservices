@@ -158,11 +158,14 @@ services:
       DB_NAME: order_db
       DB_USER: order_user
       DB_PASSWORD: order_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       INVENTORY_SERVICE_URL: http://inventory:8000
       GCP_PROJECT_ID: local-project
       PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
       PUBSUB_TOPIC_ORDER_EVENTS: order-events
       PUBSUB_SUBSCRIPTION_FULFILLMENT_ASSIGNED: order-fulfillment-assigned-sub
+      PUBSUB_SUBSCRIPTION_FULFILLMENT_COMPLETED: order-fulfillment-completed-sub
     ports:
       - "${ORDER_SERVICE_PORT:-8002}:8000"
     depends_on:
@@ -196,6 +199,8 @@ services:
       DB_NAME: fulfillment_db
       DB_USER: fulfillment_user
       DB_PASSWORD: fulfillment_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       ORDER_SERVICE_URL: http://order:8000
       GCP_PROJECT_ID: local-project
       PUBSUB_EMULATOR_HOST: pubsub-emulator:8085

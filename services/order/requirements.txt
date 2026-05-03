@@ -17,6 +17,9 @@ pydantic==2.8.2
 pydantic-settings==2.3.4
 python-dotenv==1.0.1
 
+# ── Cache (Redis — for rate limiting) ────────────────────────────────────────
+redis[asyncio]==5.0.8
+
 # ── HTTP Client (inter-service calls to Inventory) ────────────────────────────
 httpx==0.27.0
 

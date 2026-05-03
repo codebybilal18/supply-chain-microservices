@@ -101,6 +101,13 @@ create_subscription \
   30 \
   "fulfillment-events-dlq"
 
+# Order Service: consumes fulfillment.completed events
+create_subscription \
+  "order-fulfillment-completed-sub" \
+  "fulfillment-events" \
+  30 \
+  "fulfillment-events-dlq"
+
 # Fulfillment Service: consumes order.created events
 create_subscription \
   "fulfillment-order-created-sub" \

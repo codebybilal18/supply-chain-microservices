@@ -11,8 +11,10 @@ from sqlalchemy import engine_from_config, pool
 # Add app to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# Import all models so Alembic can discover the full metadata graph.
+import app.models  # noqa: F401
 from app.config import settings
-from app.models import Base
+from app.database import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.sync_database_url)
