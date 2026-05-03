@@ -1,8 +1,6 @@
-# SupplyChainForge
+# Supply Chain Microservices
 
 > A production-grade, cloud-native supply chain management system built with Python microservices on Google Cloud Platform.
-
-**Status: ✅ All 6 Milestones Complete — 74 tests passing**
 
 ---
 
@@ -75,32 +73,49 @@ flowchart TD
 
 ## Event Flow
 
-```
-POST /api/v1/orders
-      ↓
-Order Service
-  ├─ Validates stock (via API call to Inventory)
-  ├─ Creates Order (status: CONFIRMED)
-  └─ Publishes order.created event
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant OS as Order Service
+    participant IS as Inventory Service
+    participant FS as Fulfillment Service
 
-          ┌──────────────────────┬──────────────────────┐
-          ▼                      ▼
-Inventory Service       Fulfillment Service
-  └─ Reserves stock       ├─ Creates Fulfillment record
-                          └─ Publishes fulfillment.assigned
+    rect rgb(220, 235, 255)
+        Note over Client,FS: Phase 1 — Order Placement
+        Client->>+OS: POST /api/v1/orders
+        OS->>+IS: GET stock availability (REST)
+        IS-->>-OS: 200 OK — stock available
+        OS->>OS: Create Order [PENDING → CONFIRMED]
+        OS-->>-Client: 201 Created
+    end
 
-                                 ↓
-                           Order Service
-                           └─ Updates status to PROCESSING
+    rect rgb(220, 255, 230)
+        Note over Client,FS: Phase 2 — Async Event Fan-out (order.created)
+        par Pub/Sub → Inventory Service
+            OS-)IS: order.created
+            IS->>IS: Reserve stock
+        and Pub/Sub → Fulfillment Service
+            OS-)FS: order.created
+            FS->>FS: Create Fulfillment record
+        end
+        FS-)OS: fulfillment.assigned
+        OS->>OS: Update Order [CONFIRMED → PROCESSING]
+    end
 
-POST /fulfillments/{id}/complete
-      ↓
-Fulfillment Service → Publishes fulfillment.completed
-
-          ┌──────────────────────┬──────────────────────┐
-          ▼                      ▼
-     Order Service         Inventory Service
-     └─ DELIVERED           └─ Records consumption
+    rect rgb(255, 245, 220)
+        Note over Client,FS: Phase 3 — Fulfillment Completion
+        Client->>+FS: POST /fulfillments/{id}/complete
+        FS->>FS: Mark Fulfillment [SHIPPED → COMPLETED]
+        FS-->>-Client: 200 OK
+        par Pub/Sub → Order Service
+            FS-)OS: fulfillment.completed
+            OS->>OS: Update Order [PROCESSING → DELIVERED]
+        and Pub/Sub → Inventory Service
+            FS-)IS: fulfillment.completed
+            IS->>IS: Record stock consumption
+        end
+    end
 ```
 
 ---
@@ -150,19 +165,32 @@ Each service follows a clean layered architecture (`routers → services → rep
 Each service exposes interactive Swagger documentation at `/docs`.
 
 ### Inventory Service (`:8001`)
+
 - Product CRUD operations
 - Stock reservation & release (with pessimistic locking)
 - Low stock queries
 
+<img width="1440" height="900" alt="Screenshot 2026-05-03 at 7 53 00 PM" src="https://github.com/user-attachments/assets/b9149566-13fa-484e-8bd8-69a0e3d14892" />
+
+---
+
 ### Order Service (`:8002`)
+
 - Order creation with inventory validation
-- Order lifecycle management (PENDING → CONFIRMED → PROCESSING → DELIVERED)
+- Order lifecycle management (`PENDING → CONFIRMED → PROCESSING → DELIVERED`)
 - Cancellation support
 
+<img width="1440" height="900" alt="Screenshot 2026-05-03 at 7 53 42 PM" src="https://github.com/user-attachments/assets/920fa3c4-46f4-43b6-a309-6227410c1541" />
+
+---
+
 ### Fulfillment Service (`:8003`)
+
 - Fulfillment creation on order events
 - Picking, shipping, and completion workflows
 - Status tracking
+
+<img width="1440" height="900" alt="Screenshot 2026-05-03 at 7 53 23 PM" src="https://github.com/user-attachments/assets/20851272-1198-467d-9a77-240069a43319" />
 
 ---
 
