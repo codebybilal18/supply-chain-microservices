@@ -203,7 +203,7 @@ Each service exposes interactive Swagger documentation at `/docs`.
 ### Setup
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/codebybilal18/supply-chain-microservices.git
 cd supplychainforge
 
 cp .env.example .env
