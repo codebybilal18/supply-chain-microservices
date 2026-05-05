@@ -108,6 +108,8 @@ services:
       context: .
       dockerfile: services/inventory/Dockerfile
       target: runtime
+      platforms:
+        - linux/amd64
     container_name: scf-inventory
     restart: unless-stopped
     env_file:
@@ -148,6 +150,8 @@ services:
       context: .
       dockerfile: services/order/Dockerfile
       target: runtime
+      platforms:
+        - linux/amd64
     container_name: scf-order
     restart: unless-stopped
     env_file:
@@ -189,6 +193,8 @@ services:
       context: .
       dockerfile: services/fulfillment/Dockerfile
       target: runtime
+      platforms:
+        - linux/amd64
     container_name: scf-fulfillment
     restart: unless-stopped
     env_file:

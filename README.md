@@ -210,14 +210,6 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-### Run Migrations
-
-```bash
-for svc in inventory order fulfillment; do
-  docker compose exec $svc alembic upgrade head
-done
-```
-
 ### Test the Full Flow
 See `tests/e2e/test_e2e_flow.py` or use the example curl commands in the detailed guide.
 

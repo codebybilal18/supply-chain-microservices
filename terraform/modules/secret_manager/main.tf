@@ -33,23 +33,44 @@ resource "google_secret_manager_secret_version" "db_root_password" {
 resource "google_secret_manager_secret" "inventory_db" {
   secret_id = "scf-inventory-db-dsn"
   project   = var.project_id
-  replication { auto {} }
+
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret" "order_db" {
   secret_id = "scf-order-db-dsn"
   project   = var.project_id
-  replication { auto {} }
+
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret" "fulfillment_db" {
   secret_id = "scf-fulfillment-db-dsn"
   project   = var.project_id
-  replication { auto {} }
+
+  replication {
+    auto {}
+  }
 }
 
 # ── Outputs ───────────────────────────────────────────────────────────────────
-output "db_root_password"        { value = random_password.db_root.result;                 sensitive = true }
-output "inventory_db_secret_id"  { value = google_secret_manager_secret.inventory_db.id }
-output "order_db_secret_id"      { value = google_secret_manager_secret.order_db.id }
-output "fulfillment_db_secret_id"{ value = google_secret_manager_secret.fulfillment_db.id }
+output "db_root_password" {
+  value     = random_password.db_root.result
+  sensitive = true
+}
+
+output "inventory_db_secret_id" {
+  value = google_secret_manager_secret.inventory_db.id
+}
+
+output "order_db_secret_id" {
+  value = google_secret_manager_secret.order_db.id
+}
+
+output "fulfillment_db_secret_id" {
+  value = google_secret_manager_secret.fulfillment_db.id
+}

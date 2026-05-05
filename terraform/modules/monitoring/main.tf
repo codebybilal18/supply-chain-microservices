@@ -101,7 +101,7 @@ resource "google_monitoring_alert_policy" "dlq_messages" {
       filter = <<-EOT
         resource.type = "pubsub_subscription"
         AND metric.type = "pubsub.googleapis.com/subscription/num_undelivered_messages"
-        AND resource.labels.subscription_id =~ ".*-dlq-sub$"
+        AND resource.labels.subscription_id = monitoring.regex.full_match(".*-dlq-sub")
       EOT
 
       aggregations {

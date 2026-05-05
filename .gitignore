@@ -59,6 +59,9 @@ terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.backup
 terraform/.terraform.lock.hcl
+terraform/tfplan
+terraform/environments/*.tfvars
+!terraform/environments/*.tfvars.example
 
 # Misc
 *.bak

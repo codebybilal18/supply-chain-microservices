@@ -10,7 +10,7 @@ variable "project_id" {
 variable "region" {
   description = "Primary GCP region for all resources."
   type        = string
-  default     = "us-central1"
+  default     = "me-central1"
 }
 
 variable "image_tag" {

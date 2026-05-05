@@ -8,7 +8,10 @@ variable "image_tag"               { type = string }
 variable "registry_url"            { type = string }
 variable "vpc_connector_id"        { type = string }
 variable "cloud_run_sa_email"      { type = string }
-variable "redis_host"              { type = string; sensitive = true }
+variable "redis_host" {
+  type      = string
+  sensitive = true
+}
 variable "redis_port"              { type = number }
 variable "cloud_sql_connection_name" { type = string }
 variable "inventory_db_secret"     { type = string }
@@ -78,13 +81,34 @@ resource "google_cloud_run_v2_service" "inventory" {
         }
       }
 
-      env { name = "DB_HOST";          value = "127.0.0.1" }
-      env { name = "DB_USER";          value = "inventory_user" }
-      env { name = "DB_NAME";          value = "inventory_db" }
-      env { name = "SERVICE_NAME";     value = "inventory-service" }
-      env { name = "PUBSUB_TOPIC_INVENTORY_EVENTS";                value = "inventory-events" }
-      env { name = "PUBSUB_SUBSCRIPTION_ORDER_CREATED";            value = "inventory-order-created-sub" }
-      env { name = "PUBSUB_SUBSCRIPTION_FULFILLMENT_COMPLETED";    value = "inventory-fulfillment-completed-sub" }
+      env {
+        name  = "DB_HOST"
+        value = "127.0.0.1"
+      }
+      env {
+        name  = "DB_USER"
+        value = "inventory_user"
+      }
+      env {
+        name  = "DB_NAME"
+        value = "inventory_db"
+      }
+      env {
+        name  = "SERVICE_NAME"
+        value = "inventory-service"
+      }
+      env {
+        name  = "PUBSUB_TOPIC_INVENTORY_EVENTS"
+        value = "inventory-events"
+      }
+      env {
+        name  = "PUBSUB_SUBSCRIPTION_ORDER_CREATED"
+        value = "inventory-order-created-sub"
+      }
+      env {
+        name  = "PUBSUB_SUBSCRIPTION_FULFILLMENT_COMPLETED"
+        value = "inventory-fulfillment-completed-sub"
+      }
 
       # Cloud SQL Auth Proxy sidecar handles /cloudsql socket
       ports { container_port = 8000 }
@@ -109,6 +133,7 @@ resource "google_cloud_run_v2_service" "inventory" {
       args  = [
         "--structured-logs",
         "--port=3306",
+        "--private-ip",
         "${var.cloud_sql_connection_name}",
       ]
       resources {
@@ -164,13 +189,34 @@ resource "google_cloud_run_v2_service" "order" {
         }
       }
 
-      env { name = "DB_HOST";                   value = "127.0.0.1" }
-      env { name = "DB_USER";                   value = "order_user" }
-      env { name = "DB_NAME";                   value = "order_db" }
-      env { name = "SERVICE_NAME";              value = "order-service" }
-      env { name = "INVENTORY_SERVICE_URL";     value = google_cloud_run_v2_service.inventory.uri }
-      env { name = "PUBSUB_TOPIC_ORDER_EVENTS"; value = "order-events" }
-      env { name = "PUBSUB_SUBSCRIPTION_FULFILLMENT_ASSIGNED"; value = "order-fulfillment-assigned-sub" }
+      env {
+        name  = "DB_HOST"
+        value = "127.0.0.1"
+      }
+      env {
+        name  = "DB_USER"
+        value = "order_user"
+      }
+      env {
+        name  = "DB_NAME"
+        value = "order_db"
+      }
+      env {
+        name  = "SERVICE_NAME"
+        value = "order-service"
+      }
+      env {
+        name  = "INVENTORY_SERVICE_URL"
+        value = google_cloud_run_v2_service.inventory.uri
+      }
+      env {
+        name  = "PUBSUB_TOPIC_ORDER_EVENTS"
+        value = "order-events"
+      }
+      env {
+        name  = "PUBSUB_SUBSCRIPTION_FULFILLMENT_ASSIGNED"
+        value = "order-fulfillment-assigned-sub"
+      }
 
       ports { container_port = 8000 }
 
@@ -190,7 +236,7 @@ resource "google_cloud_run_v2_service" "order" {
 
     containers {
       image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11"
-      args  = ["--structured-logs", "--port=3306", "${var.cloud_sql_connection_name}"]
+      args  = ["--structured-logs", "--port=3306", "--private-ip", "${var.cloud_sql_connection_name}"]
       resources { limits = { cpu = "0.5", memory = "128Mi" } }
     }
   }
@@ -244,13 +290,34 @@ resource "google_cloud_run_v2_service" "fulfillment" {
         }
       }
 
-      env { name = "DB_HOST";                      value = "127.0.0.1" }
-      env { name = "DB_USER";                      value = "fulfillment_user" }
-      env { name = "DB_NAME";                      value = "fulfillment_db" }
-      env { name = "SERVICE_NAME";                 value = "fulfillment-service" }
-      env { name = "ORDER_SERVICE_URL";            value = google_cloud_run_v2_service.order.uri }
-      env { name = "PUBSUB_TOPIC_FULFILLMENT_EVENTS"; value = "fulfillment-events" }
-      env { name = "PUBSUB_SUBSCRIPTION_ORDER_CREATED"; value = "fulfillment-order-created-sub" }
+      env {
+        name  = "DB_HOST"
+        value = "127.0.0.1"
+      }
+      env {
+        name  = "DB_USER"
+        value = "fulfillment_user"
+      }
+      env {
+        name  = "DB_NAME"
+        value = "fulfillment_db"
+      }
+      env {
+        name  = "SERVICE_NAME"
+        value = "fulfillment-service"
+      }
+      env {
+        name  = "ORDER_SERVICE_URL"
+        value = google_cloud_run_v2_service.order.uri
+      }
+      env {
+        name  = "PUBSUB_TOPIC_FULFILLMENT_EVENTS"
+        value = "fulfillment-events"
+      }
+      env {
+        name  = "PUBSUB_SUBSCRIPTION_ORDER_CREATED"
+        value = "fulfillment-order-created-sub"
+      }
 
       ports { container_port = 8002 }
 
@@ -270,7 +337,7 @@ resource "google_cloud_run_v2_service" "fulfillment" {
 
     containers {
       image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11"
-      args  = ["--structured-logs", "--port=3306", "${var.cloud_sql_connection_name}"]
+      args  = ["--structured-logs", "--port=3306", "--private-ip", "${var.cloud_sql_connection_name}"]
       resources { limits = { cpu = "0.5", memory = "128Mi" } }
     }
   }

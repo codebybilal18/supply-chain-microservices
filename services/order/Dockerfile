@@ -2,7 +2,7 @@
 # Order Service — Dockerfile (Multi-stage build)
 # Build context: supplychainforge/
 # =============================================================================
-FROM python:3.11-slim AS builder
+FROM --platform=linux/amd64 python:3.11-slim AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
 ENV VIRTUAL_ENV=/opt/venv
@@ -11,7 +11,7 @@ RUN python -m venv $VIRTUAL_ENV
 COPY services/order/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-FROM python:3.11-slim AS runtime
+FROM --platform=linux/amd64 python:3.11-slim AS runtime
 WORKDIR /app
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH=$VIRTUAL_ENV/bin:$PATH

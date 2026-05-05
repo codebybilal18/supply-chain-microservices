@@ -116,6 +116,25 @@ module "artifact_registry" {
   suffix     = random_id.suffix.hex
 }
 
+# ── Populate per-service DB secrets with passwords from Cloud SQL ─────────────
+resource "google_secret_manager_secret_version" "inventory_db" {
+  secret      = module.secret_manager.inventory_db_secret_id
+  secret_data = module.cloud_sql.inventory_db_password
+  depends_on  = [module.secret_manager, module.cloud_sql]
+}
+
+resource "google_secret_manager_secret_version" "order_db" {
+  secret      = module.secret_manager.order_db_secret_id
+  secret_data = module.cloud_sql.order_db_password
+  depends_on  = [module.secret_manager, module.cloud_sql]
+}
+
+resource "google_secret_manager_secret_version" "fulfillment_db" {
+  secret      = module.secret_manager.fulfillment_db_secret_id
+  secret_data = module.cloud_sql.fulfillment_db_password
+  depends_on  = [module.secret_manager, module.cloud_sql]
+}
+
 module "cloud_run" {
   source                       = "./modules/cloud_run"
   project_id                   = var.project_id
@@ -136,6 +155,9 @@ module "cloud_run" {
     module.pubsub,
     module.artifact_registry,
     module.iam,
+    google_secret_manager_secret_version.inventory_db,
+    google_secret_manager_secret_version.order_db,
+    google_secret_manager_secret_version.fulfillment_db,
   ]
 }
 

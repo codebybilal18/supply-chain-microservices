@@ -16,13 +16,13 @@
 #   4c. Deploy fulfillment to Cloud Run
 #
 # Substitutions (set in trigger config):
-#   _REGION       — GCP region (default: us-central1)
+#   _REGION       — GCP region (default: me-central1)
 #   _REGISTRY_URL — Artifact Registry URL
 #   _ENVIRONMENT  — Deployment environment (default: prod)
 # =============================================================================
 
 substitutions:
-  _REGION: "us-central1"
+  _REGION: "me-central1"
   _REGISTRY_URL: "${_REGION}-docker.pkg.dev/${PROJECT_ID}/scf-services"
   _ENVIRONMENT: "prod"
 
@@ -78,6 +78,7 @@ steps:
     dir: "supplychainforge"
     args:
       - "build"
+      - "--platform", "linux/amd64"
       - "--target", "runtime"
       - "--tag", "${_REGISTRY_URL}/inventory:${SHORT_SHA}"
       - "--tag", "${_REGISTRY_URL}/inventory:latest"
@@ -92,6 +93,7 @@ steps:
     dir: "supplychainforge"
     args:
       - "build"
+      - "--platform", "linux/amd64"
       - "--target", "runtime"
       - "--tag", "${_REGISTRY_URL}/order:${SHORT_SHA}"
       - "--tag", "${_REGISTRY_URL}/order:latest"
@@ -106,6 +108,7 @@ steps:
     dir: "supplychainforge"
     args:
       - "build"
+      - "--platform", "linux/amd64"
       - "--target", "runtime"
       - "--tag", "${_REGISTRY_URL}/fulfillment:${SHORT_SHA}"
       - "--tag", "${_REGISTRY_URL}/fulfillment:latest"

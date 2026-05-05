@@ -7,7 +7,10 @@ variable "region"             { type = string }
 variable "suffix"             { type = string }
 variable "network_id"         { type = string }
 variable "private_ip_address" { type = string }
-variable "db_root_password"   { type = string; sensitive = true }
+variable "db_root_password" {
+  type      = string
+  sensitive = true
+}
 
 # ── Instance ──────────────────────────────────────────────────────────────────
 resource "google_sql_database_instance" "main" {
@@ -95,9 +98,20 @@ resource "google_sql_database" "fulfillment" {
 }
 
 # ── Per-service users (least privilege) ───────────────────────────────────────
-resource "random_password" "inventory_db" { length = 24; special = false }
-resource "random_password" "order_db"     { length = 24; special = false }
-resource "random_password" "fulfillment_db" { length = 24; special = false }
+resource "random_password" "inventory_db" {
+  length  = 24
+  special = false
+}
+
+resource "random_password" "order_db" {
+  length  = 24
+  special = false
+}
+
+resource "random_password" "fulfillment_db" {
+  length  = 24
+  special = false
+}
 
 resource "google_sql_user" "inventory" {
   name     = "inventory_user"
@@ -123,6 +137,17 @@ resource "google_sql_user" "fulfillment" {
 # ── Outputs ───────────────────────────────────────────────────────────────────
 output "connection_name"          { value = google_sql_database_instance.main.connection_name }
 output "private_ip"               { value = google_sql_database_instance.main.private_ip_address }
-output "inventory_db_password"    { value = random_password.inventory_db.result; sensitive = true }
-output "order_db_password"        { value = random_password.order_db.result;     sensitive = true }
-output "fulfillment_db_password"  { value = random_password.fulfillment_db.result; sensitive = true }
+output "inventory_db_password" {
+  value     = random_password.inventory_db.result
+  sensitive = true
+}
+
+output "order_db_password" {
+  value     = random_password.order_db.result
+  sensitive = true
+}
+
+output "fulfillment_db_password" {
+  value     = random_password.fulfillment_db.result
+  sensitive = true
+}
